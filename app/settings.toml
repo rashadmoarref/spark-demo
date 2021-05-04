@@ -1,0 +1,65 @@
+### Logging
+[default.logging]
+version = 1
+disable_existing_loggers = false
+formatters.javastyle.format = "%(asctime)s,%(msecs)03d %(levelname)8s %(name)s %(filename)s:%(lineno)d - %(message)s"
+formatters.javastyle.datefmt = "%Y-%m-%d %H:%M:%S"
+handlers.console.class = "logging.StreamHandler"
+handlers.console.formatter = "javastyle"
+handlers.console.level = "NOTSET"
+handlers.console.stream = "ext://sys.stdout"
+# First party logger
+root.handlers = ["console"]
+root.level = "INFO"
+# Third party loggers
+loggers.boto3.level = "ERROR"
+loggers.botocore.level = "ERROR"
+loggers.requests.level = "ERROR"
+loggers.py4j.level = "ERROR"
+
+[default]
+
+partition_size = 1024
+streaming_trigger_seconds = 1
+consumption_timeout = 1000
+checkpoint_location = "/tmp/checkpoints/process"
+
+[default.kafka_configs]
+"bootstrap.servers" = "kafka:9092"
+"dummy.group.id" = "Spark-Ner-Dev"
+"topic_in" = "input"
+"topic_out" = "result"
+"starting_offsets" = "latest"
+
+### Development
+[development]
+logging__root__level = "DEBUG"
+
+### Staging
+[staging]
+streaming_trigger_seconds = 5
+checkpoint_location = "s3a://<your-s3-bucket>--stage/spark-demo/checkpoints/stage"
+
+[staging.kafka_configs]
+"bootstrap.servers" = "<kafka-cluster-stage>:9092"
+"dummy.group.id" = "Spark-Ner-Stage"
+"topic_in" = "input"
+"topic_out" = "result"
+"starting_offsets" = "latest"
+
+logging__root__level = "INFO"
+
+### Production
+
+[production]
+streaming_trigger_seconds = 5
+checkpoint_location = "s3a://<your-s3-bucket>--prod/spark-demo/checkpoints/prod"
+
+[production.kafka_configs]
+"bootstrap.servers" = "<kafka-cluster-prod>:9092"
+"dummy.group.id" = "Spark-Ner-Prod"
+"topic_in" = "input"
+"topic_out" = "result"
+"starting_offsets" = "latest"
+
+logging__root__level = "WARNING"

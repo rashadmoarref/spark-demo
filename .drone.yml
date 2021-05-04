@@ -1,0 +1,146 @@
+# Utilities
+
+docker_volumes: &docker_volumes
+  volumes:
+    - name: docker
+      path: /var/run/docker.sock
+    - name: pip_cache
+      path: /root/.cache/pip
+    - name: ecr_helper
+      path: /usr/local/bin/docker-credential-ecr-login
+
+when_prod: &when_prod
+  when:
+    ref:
+      - refs/tags/*
+
+when_stage: &when_stage
+  when:
+    ref:
+      include:
+        - refs/heads/main
+      exclude:
+        - refs/tags/*
+
+when_dev: &when_dev
+  when:
+    ref:
+      exclude:
+        - refs/tags/*
+        - refs/heads/main
+
+# ECR build
+
+ecr_build: &ecr_build
+  image: plugins/ecr
+  settings:
+    dockerfile: ./Dockerfile
+    build_args:
+      - BUILD_TARGET=databricks
+    create_repository: true
+    repo: <aws-account>.dkr.ecr.<aws-region>.amazonaws.com/<image-name>
+    registry: <aws-account>.dkr.ecr.<aws-region>.amazonaws.com
+    region: <aws-region>
+
+
+########################################################################################################################
+### Drone CI/CD pipeline
+########################################################################################################################
+
+kind: pipeline
+name: default
+
+steps:
+  ### Build step
+
+  - name: ecr_build_prod
+    <<: *ecr_build
+    settings:
+      tags:
+        - latest
+        - ${DRONE_TAG}
+    <<: *when_prod
+
+  - name: ecr_build_stage
+    <<: *ecr_build
+    settings:
+      tags:
+        - stage
+    <<: *when_stage
+
+  - name: ecr_build_dev
+    <<: *ecr_build
+    settings:
+      tags:
+        - ${DRONE_BRANCH}-${DRONE_COMMIT_SHA:0:8}
+    <<: *when_dev
+
+  ### Deployment step
+
+  - name: spark_deploy_prod
+    image: alpine:3.7
+    environment:
+      DATABRICKS_API_TOKEN:
+        from_secret: databricks_api_token
+      CLUSTER_NAME: PROD_SPARK_DEMO
+      IMAGE_NAME: "${DRONE_REPO_NAME}:${DRONE_TAG}"
+      ENV_FOR_DYNACONF: production
+      INIT_SCRIPTS_DESTINATION_S3: s3://<your-s3-bucket>--prod/init_scripts/init-script.sh
+      LOG_DESTINATION_S3: s3://<your-s3-bucket>--prod/${DRONE_REPO_NAME}/logs
+      INSTANCE_TYPE: c5.xlarge
+      SPARK_VERSION: 7.3.x-scala2.12
+      MIN_WORKERS: 1
+      MAX_WORKERS: 100
+    commands:
+      - apk update && apk add --no-cache curl jq
+      - sh deploy/databricks/deploy-job.sh
+    <<: *when_prod
+
+  - name: spark_deploy_stage
+    image: alpine:3.7
+    environment:
+      DATABRICKS_API_TOKEN:
+        from_secret: databricks_api_token
+      CLUSTER_NAME: STAGE_SPARK_DEMO
+      IMAGE_NAME: "${DRONE_REPO_NAME}:stage"
+      ENV_FOR_DYNACONF: staging
+      INIT_SCRIPTS_DESTINATION_S3: s3://<your-s3-bucket>--stage/init_scripts/init-script.sh
+      LOG_DESTINATION_S3: s3://<your-s3-bucket>--stage/${DRONE_REPO_NAME}/logs
+      INSTANCE_TYPE: c5.xlarge
+      SPARK_VERSION: 7.3.x-scala2.12
+      MIN_WORKERS: 1
+      MAX_WORKERS: 2
+    commands:
+      - apk update && apk add --no-cache curl jq
+      - sh deploy/databricks/deploy-job.sh
+    <<: *when_stage
+
+  ### Notification
+  - name: notify
+    image: plugins/slack
+    settings:
+      channel: <your-slack-channel>
+      webhook: https://hooks.slack.com/services/<your-slack-hook-token>
+      username: "Drone"
+      template: |
+        {{#success build.status}}
+          {{ build.link }} {{ build.author }} successfully pushed to {{ build.branch }}
+        {{else}}
+          {{ build.link }} {{ build.author }} broke the build.
+        {{/success}}
+    when:
+      status: [success, failure]
+
+### Volumes section
+volumes:
+  - name: docker
+    host:
+      path: /var/run/docker.sock
+
+  - name: pip_cache
+    host:
+      path: /root/.cache/pip
+
+  - name: ecr_helper
+    host:
+      path: /usr/local/bin/docker-credential-ecr-login
