@@ -1,0 +1,31 @@
+version: "2"
+
+services:
+  spark-demo:
+    image: spark-demo
+    build:
+      context: ../../../
+      args:
+        BUILD_TARGET: local
+    user: root
+    networks:
+      - demo
+    environment:
+      - ENV_FOR_DYNACONF=development
+    env_file:
+      - local.env
+    volumes:
+      - ${HOME}/.aws:/root/.aws:ro
+      - ../../../app:/app
+    command: >
+      bash -c "spark-submit
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.0.1
+      --master local[*]
+      --conf 'spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true'
+      --conf 'spark.driver.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true'
+      /app/run.py"
+
+networks:
+  demo:
+    external:
+      name: demo
