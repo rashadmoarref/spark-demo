@@ -1,6 +1,6 @@
 ## Description
 
-This demo intends to provide an end-to-end example of deploying an NLP inference project using [Apache Spark Structured Streaming](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html). The setup includes ready-to-use local deployment for testing and cloud deployment on [Databricks](https://databricks.com/) using [Drone](https://www.drone.io/). For the purpose of this demo, we use [spaCy](https://spacy.io/)'s open-source Named Entity Recognition model.
+This demo intends to provide an end-to-end example of deploying an NLP inference project using [Apache Spark Structured Streaming](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html). The setup includes ready-to-use local deployment for testing and cloud deployment on [Databricks](https://databricks.com/) using [Drone](https://www.drone.io/). Please also see accompanying [Medium blog post](https://medium.com/gumgum-tech/real-time-machine-learning-inference-at-scale-using-spark-structured-streaming-fa8790314319). For the purpose of this demo, we use [spaCy](https://spacy.io/)'s open-source Named Entity Recognition model.
 
 To clone the repo, run `git clone https://github.com/rashadmoarref/spark-demo.git`
 
